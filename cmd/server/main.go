@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -35,42 +33,42 @@ func main() {
 	//print server REPL commands
 	gamelogic.PrintServerHelp()
 	for {
-		input := gamelogic.GetInput()
-		if input[0] == "pause" {
-			fmt.Println("Sending pause message")
-			//publish pause message to the exchange
-			err = pubsub.PublishJSON(ch1, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-				IsPaused: true,
-			})
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+		switch words[0] {
+		case "pause":
+			fmt.Println("Publishing paused game state")
+			err = pubsub.PublishJSON(
+				ch1,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{
+					IsPaused: true,
+				},
+			)
 			if err != nil {
-				log.Fatalf("Failed to publish message: %s", err)
-				return
+				log.Printf("could not publish time: %v", err)
 			}
-			fmt.Println("Pause message sent!")
-		} else if input[0] == "resume" {
-			fmt.Println("Sending resume message")
-			//publish pause message to the exchange
-			err = pubsub.PublishJSON(ch1, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-				IsPaused: false,
-			})
+		case "resume":
+			fmt.Println("Publishing resumes game state")
+			err = pubsub.PublishJSON(
+				ch1,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{
+					IsPaused: false,
+				},
+			)
 			if err != nil {
-				log.Fatalf("Failed to publish message: %s", err)
-				return
+				log.Printf("could not publish time: %v", err)
 			}
-			fmt.Println("Resume message sent!")
-		} else if input[0] == "quit" {
-			fmt.Println("Exiting")
-			break
-		} else {
-			fmt.Println("Command not understood")
+		case "quit":
+			log.Println("goodbye")
+			return
+		default:
+			fmt.Println("unknown command")
 		}
 	}
-
-	//handle closure from ctrl + c gracefully
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-
-	fmt.Println("Recieved interrupt. Closing connection")
-	connection.Close()
 }
