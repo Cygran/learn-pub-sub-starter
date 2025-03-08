@@ -29,9 +29,17 @@ func main() {
 		log.Fatalf("Unable to create Channel on connection: %s", err)
 		return
 	}
+	//Create and bind to Topic Queue
+	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.QueueTypeDurable)
+	if err != nil {
+		log.Fatalf("Unable to establish queue on exchange: %s", err)
+	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	//print server REPL commands
 	gamelogic.PrintServerHelp()
+
+	//Game Loop REPL
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {

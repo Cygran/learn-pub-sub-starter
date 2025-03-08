@@ -36,7 +36,7 @@ func main() {
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	//Game loop
+	//Game Loop REPL
 	gs := gamelogic.NewGameState(userName)
 	for {
 		words := gamelogic.GetInput()
