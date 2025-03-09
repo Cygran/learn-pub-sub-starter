@@ -44,9 +44,15 @@ func main() {
 	}
 
 	//create, bind and subscribe to move queue
-	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+userName, routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gs))
+	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+userName, routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gs, publishCh))
 	if err != nil {
 		log.Fatalf("Unable to subscribe to moves queue: %s", err)
+	}
+
+	//create, bind and subscribe to war queue
+	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerWar(gs))
+	if err != nil {
+		log.Fatalf("could not subscribe to war declarations: %s", err)
 	}
 
 	//Game Loop REPL
