@@ -6,27 +6,26 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type SimpleQueueType int
+
 const (
-	QueueTypeDurable = iota
-	QueueTypeTransient
+	SimpleQueueDurable SimpleQueueType = iota
+	SimpleQueueTransient
 )
 
-func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simpleQueueType int) (*amqp.Channel, amqp.Queue, error) {
+func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType) (*amqp.Channel, amqp.Queue, error) {
 	// create a channel
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, amqp.Queue{}, fmt.Errorf("could not create channel: %s", err)
 	}
 
-	// Set queue properties based on simpleQueueType
-	isDurable := simpleQueueType == QueueTypeDurable
-	isTransient := simpleQueueType == QueueTypeTransient
 	// Create queue
 	queue, err := ch.QueueDeclare(
 		queueName,
-		isDurable,
-		isTransient,
-		isTransient,
+		simpleQueueType == SimpleQueueDurable,
+		simpleQueueType != SimpleQueueDurable,
+		simpleQueueType != SimpleQueueDurable,
 		false,
 		nil,
 	)

@@ -30,14 +30,21 @@ func main() {
 
 	//Create and bind to pause queue
 	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, userName)
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.QueueTypeTransient)
+	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.SimpleQueueTransient)
 	if err != nil {
 		log.Fatalf("Unable to establish queue on exchange: %s", err)
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	//Game Loop REPL
+	//create Game State
 	gs := gamelogic.NewGameState(userName)
+
+	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilDirect, queue.Name, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
+	if err != nil {
+		log.Fatalf("Unable to subscribe to pause queue: %s", err)
+	}
+
+	//Game Loop REPL
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -68,5 +75,12 @@ func main() {
 		default:
 			fmt.Println("unknown command")
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(state routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(state)
 	}
 }

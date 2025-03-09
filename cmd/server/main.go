@@ -30,7 +30,7 @@ func main() {
 		return
 	}
 	//Create and bind to Topic Queue
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.QueueTypeDurable)
+	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.SimpleQueueDurable)
 	if err != nil {
 		log.Fatalf("Unable to establish queue on exchange: %s", err)
 	}
