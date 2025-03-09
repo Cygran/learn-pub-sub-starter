@@ -30,11 +30,10 @@ func main() {
 		return
 	}
 	//Create and bind to Topic Queue
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.SimpleQueueDurable)
+	err = pubsub.SubscribeGob(connection, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.SimpleQueueDurable, handlerLogs())
 	if err != nil {
-		log.Fatalf("Unable to establish queue on exchange: %s", err)
+		log.Fatalf("could not starting consuming logs: %s", err)
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	//print server REPL commands
 	gamelogic.PrintServerHelp()
