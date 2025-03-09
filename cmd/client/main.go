@@ -22,26 +22,31 @@ func main() {
 	defer connection.Close()
 	fmt.Println("Connection to Server successful")
 
+	//create message publishing channel
+	publishCh, err := connection.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
+
 	//User Login
 	userName, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatalf("Unable to fecth username: %s", err)
 	}
 
-	//Create and bind to pause queue
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, userName)
-	_, queue, err := pubsub.DeclareAndBind(connection, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.SimpleQueueTransient)
-	if err != nil {
-		log.Fatalf("Unable to establish queue on exchange: %s", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
-
 	//create Game State
 	gs := gamelogic.NewGameState(userName)
 
-	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilDirect, queue.Name, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
+	//create, bind and subscibe to pause queue
+	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilDirect, routing.PauseKey+"."+userName, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
 	if err != nil {
 		log.Fatalf("Unable to subscribe to pause queue: %s", err)
+	}
+
+	//create, bind and subscribe to move queue
+	err = pubsub.SubscribeJSON(connection, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+userName, routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gs))
+	if err != nil {
+		log.Fatalf("Unable to subscribe to moves queue: %s", err)
 	}
 
 	//Game Loop REPL
@@ -58,11 +63,24 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err = gs.CommandMove(words)
+			mv, err := gs.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
+
+			err = pubsub.PublishJSON(
+				publishCh,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+mv.Player.Username,
+				mv,
+			)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				continue
+			}
+			fmt.Printf("Moved %v units to %s\n", len(mv.Units), mv.ToLocation)
+
 		case "status":
 			gs.CommandStatus()
 		case "help":
@@ -82,5 +100,12 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(state routing.PlayingState) {
 		defer fmt.Print("> ")
 		gs.HandlePause(state)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(move gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+		gs.HandleMove(move)
 	}
 }
