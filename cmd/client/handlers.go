@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -48,20 +49,59 @@ func handlerMove(gs *gamelogic.GameState, publishCh *amqp.Channel) func(gamelogi
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(decWar gamelogic.RecognitionOfWar) pubsub.Acktype {
+func handlerWar(gs *gamelogic.GameState, publishCh *amqp.Channel) func(decWar gamelogic.RecognitionOfWar) pubsub.Acktype {
 	return func(decWar gamelogic.RecognitionOfWar) pubsub.Acktype {
 		defer fmt.Print("> ")
-		warOutcome, _, _ := gs.HandleWar(decWar)
+		warOutcome, winner, loser := gs.HandleWar(decWar)
 		switch warOutcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
+			err := pubsub.PublishGob(
+				publishCh,
+				routing.ExchangePerilTopic,
+				routing.GameLogSlug+"."+decWar.Attacker.Username,
+				routing.GameLog{
+					CurrentTime: time.Now(),
+					Message:     fmt.Sprintf("%s won a war against %s", winner, loser),
+					Username:    gs.GetUsername(),
+				})
+			if err != nil {
+				fmt.Println(err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeYouWon:
+			err := pubsub.PublishGob(
+				publishCh,
+				routing.ExchangePerilTopic,
+				routing.GameLogSlug+"."+decWar.Attacker.Username,
+				routing.GameLog{
+					CurrentTime: time.Now(),
+					Message:     fmt.Sprintf("%s won a war against %s", winner, loser),
+					Username:    gs.GetUsername(),
+				})
+			if err != nil {
+				fmt.Println(err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeDraw:
+			err := pubsub.PublishGob(
+				publishCh,
+				routing.ExchangePerilTopic,
+				routing.GameLogSlug+"."+decWar.Attacker.Username,
+				routing.GameLog{
+					CurrentTime: time.Now(),
+					Message:     fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser),
+					Username:    gs.GetUsername(),
+				})
+			if err != nil {
+				fmt.Println(err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		}
 		fmt.Println("error: unknown war outcome")
